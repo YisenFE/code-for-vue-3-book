@@ -1,14 +1,14 @@
 <body></body>
-<!-- P59 - P60 -->
+<!-- P64 - P67 -->
 <script>
-// 避免无限递归循环
+// lazy 懒执行
 
 
 // 存储副作用函数的桶
 const bucket = new WeakMap()
 
 // 原始数据
-const data = { foo: 1 }
+const data = { foo: 1, bar: 2 }
 // 对原始数据的代理
 const obj = new Proxy(data, {
   // 拦截读取操作
@@ -52,7 +52,13 @@ function trigger(target, key) {
       effectsToRun.add(effectFn)
     }
   })
-  effectsToRun.forEach(effectFn => effectFn())
+  effectsToRun.forEach(effectFn => {
+    if (effectFn.options.scheduler) {
+      effectFn.options.scheduler(effectFn)
+    } else {
+      effectFn()
+    }
+  })
   // effects && effects.forEach(effectFn => effectFn())
 }
 
@@ -61,22 +67,30 @@ let activeEffect
 // effect 栈
 const effectStack = []
 
-function effect(fn) {
+function effect(fn, options = {}) {
   const effectFn = () => {
     cleanup(effectFn)
     // 当调用 effect 注册副作用函数时，将副作用函数复制给 activeEffect
     activeEffect = effectFn
     // 在调用副作用函数之前将当前副作用函数压栈
     effectStack.push(effectFn)
-    fn()
+    const res = fn()
     // 在当前副作用函数执行完毕后，将当前副作用函数弹出栈，并还原 activeEffect 为之前的值
     effectStack.pop()
     activeEffect = effectStack[effectStack.length - 1]
+
+    return res
   }
+  // 将 options 挂在到 effectFn 上
+  effectFn.options = options
   // activeEffect.deps 用来存储所有与该副作用函数相关的依赖集合
   effectFn.deps = []
   // 执行副作用函数
-  effectFn()
+  if (!options.lazy) {
+    effectFn()
+  }
+
+  return effectFn
 }
 
 function cleanup(effectFn) {
@@ -92,9 +106,10 @@ function cleanup(effectFn) {
 
 // =========================
 
-effect(() => {
-  console.log(99)
-  obj.foo++
-})
+const effectFn = effect(() => obj.foo + obj.bar, { lazy: true })
+
+// 手动执行副作用函数
+const value = effectFn()
+console.log(value)
 
 </script>

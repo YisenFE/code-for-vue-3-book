@@ -1,5 +1,7 @@
 <body></body>
+<!-- P49 - P50 -->
 <script>
+// 将副作用函数收集到”桶“里的逻辑单独封装
 
 
 // 存储副作用函数的桶
@@ -54,13 +56,27 @@ function effect(fn) {
   fn()
 }
 
+
+
+
+// =========================
+
 effect(() => {
   console.log('effect run')
   document.body.innerText = obj.text
 })
 
+/**
 setTimeout(() => {
   trigger(data, 'text')
 }, 1000)
+*/
+
+// ---------------
+setTimeout(() => {
+  // 副作用函数中并没有读取 notExist 属性的值
+  obj.notExist = 'hello vue3'
+}, 1000)
+// ---------------
 
 </script>

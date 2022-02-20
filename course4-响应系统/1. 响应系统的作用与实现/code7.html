@@ -1,5 +1,7 @@
 <body></body>
+<!-- P50 - P55 -->
 <script>
+// 分支切换与cleanup
 
 
 // 存储副作用函数的桶
@@ -73,6 +75,11 @@ function cleanup(effectFn) {
   effectFn.deps.length = 0
 }
 
+
+
+
+// =========================
+
 effect(() => {
   console.log('effect run')
   document.body.innerText = obj.ok ? obj.text : 'not'
@@ -85,4 +92,23 @@ setTimeout(() => {
   }, 1000)
 }, 1000)
 
+</script>
+
+<!--
+<script>
+// 嵌套的effect
+let temp1, temp2
+
+effect(function effectFn1() {
+  console.log('effectFn1 执行')
+  effect(function effectFn2() {
+    console.log('effectFn2 执行')
+    temp2 = obj.bar
+  })
+  temp1 = obj.foo
+})
+
+setTimeout(() => {
+  obj.foo = false
+}, 1000)
 </script>

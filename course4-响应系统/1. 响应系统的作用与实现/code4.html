@@ -1,5 +1,7 @@
 <body></body>
+<!-- P44 - P49 -->
 <script>
+// 副作用函数与被操作的目标字段之间建立明确的联系
 
 
 // 存储副作用函数的桶
@@ -48,13 +50,27 @@ function effect(fn) {
   fn()
 }
 
+
+
+
+// =========================
+
 effect(() => {
   console.log('effect run')
   document.body.innerText = obj.text
 })
 
+/**
 setTimeout(() => {
   obj.text = 'hello vue3'
 }, 1000)
+ */
+
+// ---------------
+setTimeout(() => {
+  // 副作用函数中并没有读取 notExist 属性的值
+  obj.notExist = 'hello vue3'
+}, 1000)
+// ---------------
 
 </script>

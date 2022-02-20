@@ -1,5 +1,7 @@
 <body></body>
+<!-- P40 - P43 -->
 <script>
+// 响应式系统基本实现
 
 
 // 存储副作用函数的桶
@@ -25,9 +27,20 @@ const obj = new Proxy(data, {
   }
 })
 
+
+
+
+// =========================
+
 function effect() {
   document.body.innerText = obj.text
 }
 effect()
+
+// ---------------
+setTimeout(() => {
+  obj.text = 'hello vue3'
+}, 1000)
+// ---------------
 
 </script>

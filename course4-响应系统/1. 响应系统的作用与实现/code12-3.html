@@ -1,26 +1,19 @@
 <body></body>
+<!-- P73 - P74 -->
 <script>
+// watch 除了可以观测响应式数据，还可以接收一个 getter 函数
 
 
-// 存储副作用函数的桶
 const bucket = new WeakMap()
 
-// 原始数据
-const data = { foo: 1, bar: 2 }
-// 对原始数据的代理
+const data = { foo: 1 }
 const obj = new Proxy(data, {
-  // 拦截读取操作
   get(target, key) {
-    // 将副作用函数 activeEffect 添加到存储副作用函数的桶中
     track(target, key)
-    // 返回属性值
     return target[key]
   },
-  // 拦截设置操作
   set(target, key, newVal) {
-    // 设置属性值
     target[key] = newVal
-    // 把副作用函数从桶里取出并执行
     trigger(target, key)
   }
 })
@@ -57,33 +50,24 @@ function trigger(target, key) {
       effectFn()
     }
   })
-  // effects && effects.forEach(effectFn => effectFn())
 }
 
-// 用一个全局变量存储当前激活的 effect 函数
 let activeEffect
-// effect 栈
 const effectStack = []
 
 function effect(fn, options = {}) {
   const effectFn = () => {
     cleanup(effectFn)
-    // 当调用 effect 注册副作用函数时，将副作用函数复制给 activeEffect
     activeEffect = effectFn
-    // 在调用副作用函数之前将当前副作用函数压栈
     effectStack.push(effectFn)
     const res = fn()
-    // 在当前副作用函数执行完毕后，将当前副作用函数弹出栈，并还原 activeEffect 为之前的值
     effectStack.pop()
     activeEffect = effectStack[effectStack.length - 1]
 
     return res
   }
-  // 将 options 挂在到 effectFn 上
   effectFn.options = options
-  // activeEffect.deps 用来存储所有与该副作用函数相关的依赖集合
   effectFn.deps = []
-  // 执行副作用函数
   if (!options.lazy) {
     effectFn()
   }
@@ -99,53 +83,53 @@ function cleanup(effectFn) {
   effectFn.deps.length = 0
 }
 
+function watch(source, cb) {
+  let getter
+  // 如果 source 是函数，说明用户传递的是 getter，所以直接把 source 赋值给 getter
+  if (typeof source === 'function') {
+    getter = source
+  } else {
+    // 否则按照原来的实现调用 traverse 递归地读取
+    getter = () => traverse(source)
+  }
+
+  effect(
+    // 执行 getter
+    () => getter(),
+    {
+      scheduler() {
+        cb()
+      }
+    }
+  )
+}
+
+function traverse(value, seen = new Set()) {
+  // 如果要读取的数据是原始值，或者已经被读取过了，那么什么都不做
+  if (typeof value !== 'object' || value === null || seen.has(value)) return
+  // 将数据添加到 seen 中，代表遍历地读取过了，避免循环引用引起的死循环
+  seen.add(value)
+  // 暂时不考虑数组等其他结构
+  // 假设 value 就是一个对象，使用 for...in 读取对象的每一个值，并递归的调用 traverse 进行处理
+  for (const k in value) {
+    traverse(value[k], seen)
+  }
+
+  return value
+}
+
 
 
 
 // =========================
 
-function computed(getter) {
-  let value
-  let dirty = true
+watch(
+  // getter 函数
+  () => obj.foo,
+  // 回调函数
+  () => console.log('obj.foo 的值变了')
+)
 
-  const effectFn = effect(getter, {
-    lazy: true,
-    scheduler() {
-      if (!dirty) {
-        dirty = true
-        trigger(obj, 'value')
-      }
-    }
-  })
-  
-  const obj = {
-    get value() {
-      if (dirty) {
-        value = effectFn()
-        dirty = false
-      }
-      track(obj, 'value')
-      return value
-    }
-  }
-
-  return obj
-}
-
-const sumRes = computed(() => obj.foo + obj.bar)
-
-console.log(sumRes.value)
-console.log(sumRes.value)
-
-obj.foo++
-
-console.log(sumRes.value)
-
-effect(() => {
-  console.log(sumRes.value)
-})
-
-obj.foo++
-
+setTimeout(() => obj.foo++, 1000)
 
 </script>

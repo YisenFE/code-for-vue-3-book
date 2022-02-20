@@ -1,5 +1,7 @@
 <body></body>
+<!-- P43 - P44 -->
 <script>
+// 改善硬编码，增加添加匿名副作用函数能力
 
 
 // 存储副作用函数的桶
@@ -37,13 +39,22 @@ function effect(fn) {
   fn()
 }
 
+
+
+
+// =========================
+
 effect(() => {
   console.log('effect run')
   document.body.innerText = obj.text
 })
 
+</script>
+
+<!--
+<script>
+// 设置一个不存在的字段时，副作用函数不应该执行
 setTimeout(() => {
   obj.text2 = 'hello vue3'
 }, 1000)
-
 </script>
