@@ -1,0 +1,152 @@
+<body></body>
+<!-- P100 - P102 -->
+<script>
+// 如何代理 object
+// 删除属性操作的代理
+
+
+const bucket = new WeakMap()
+function track(target, key) {
+  if (!activeEffect) return
+  let depsMap = bucket.get(target)
+  if (!depsMap) {
+    bucket.set(target, (depsMap = new Map()))
+  }
+  let deps = depsMap.get(key)
+  if (!deps) {
+    depsMap.set(key, (deps = new Set()))
+  }
+  deps.add(activeEffect)
+  activeEffect.deps.push(deps)
+}
+
+function trigger(target, key, type) {
+  const depsMap = bucket.get(target)
+  if (!depsMap) return
+  const effects = depsMap.get(key)
+
+  const effectsToRun = new Set()
+  effects && effects.forEach(effectFn => {
+    if (effectFn !== activeEffect) {
+      effectsToRun.add(effectFn)
+    }
+  })
+
+  // 当操作类型为 ADD 或 DELETE 时，需要触发与 ITERATE_KEY 相关联的副作用函数重新执行
+  if (type === 'ADD' || type === 'DELETE') {
+    const iterateEffects = depsMap.get(ITERATE_KEY)
+    iterateEffects && iterateEffects.forEach(effectFn => {
+      if (effectFn !== activeEffect) {
+        effectsToRun.add(effectFn)
+      }
+    })
+  }
+
+  effectsToRun.forEach(effectFn => {
+    if (effectFn.options.scheduler) {
+      effectFn.options.scheduler(effectFn)
+    } else {
+      effectFn()
+    }
+  })
+}
+
+let activeEffect
+const effectStack = []
+
+function effect(fn, options = {}) {
+  const effectFn = () => {
+    cleanup(effectFn)
+    activeEffect = effectFn
+    effectStack.push(effectFn)
+    const res = fn()
+    effectStack.pop()
+    activeEffect = effectStack[effectStack.length - 1]
+
+    return res
+  }
+  effectFn.options = options
+  effectFn.deps = []
+  if (!options.lazy) {
+    effectFn()
+  }
+
+  return effectFn
+}
+
+function cleanup(effectFn) {
+  for (let i = 0; i < effectFn.deps.length; i++) {
+    const deps = effectFn.deps[i]
+    deps.delete(effectFn)
+  }
+  effectFn.deps.length = 0
+}
+
+
+
+
+// =========================
+
+const obj = { foo: 1 }
+const ITERATE_KEY = Symbol()
+
+const p = new Proxy(obj, {
+  // 拦截读取操作，接收第三个参数 receiver
+  get(target, key, receiver) {
+    track(target, key)
+    // 使用 Reflect.get 返回读取到的属性值
+    return Reflect.get(target, key, receiver)
+  },
+  set(target, key, newVal, receiver) {
+    // 如果属性不存在，则说明是在添加属性，否则是设置已有属性
+    const type = Object.prototype.hasOwnProperty.call(target, key) ? 'SET' : 'ADD'
+
+    // 设置属性
+    const res = Reflect.set(target, key, newVal, receiver)
+
+    // 将 type 作为第三个参数传递给 trigger 函数
+    trigger(target, key, type)
+    return res
+  },
+  has(target, key) {
+    track(target, key)
+    return Reflect.has(target, key)
+  },
+  ownKeys(target) {
+    // 将副作用函数与 ITERATE_KEY 关联
+    track(target, ITERATE_KEY)
+    return Reflect.ownKeys(target)
+  },
+  deleteProperty(target, key) {
+    // 检查被操作的属性是否是对象自己的属性
+    const hadKey = Object.prototype.hasOwnProperty.call(target, key)
+    // 使用 Reflect.deleteProperty 完成属性的删除
+    const res = Reflect.deleteProperty(target, key)
+
+    if (res && hadKey) {
+      // 只有当被删除的属性是对象自己的属性并且成功删除时，才触发更新
+      trigger(target, key, 'DELETE')
+    }
+
+    return res
+  }
+})
+
+effect(() => {
+  for (const key in p) {
+    console.log('key: ', key)
+  }
+})
+
+setTimeout(() => delete p.foo, 1000)
+
+</script>
+
+<!--
+<script>
+// 合理的触发响应
+effect(() => console.log(p.foo))
+
+// 设置 p.foo 的值，但值没有变化
+setTimeout(() => (p.foo = 1), 1000)
+</script>
