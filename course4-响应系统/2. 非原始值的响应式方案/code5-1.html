@@ -1,8 +1,7 @@
 <body></body>
-<!-- P112 - P113 -->
+<!-- P113 - P114 -->
 <script>
-// 只读和浅只读
-// 封装 shallowReadonly、readonly
+// 代理数组
 
 
 const bucket = new WeakMap()
@@ -21,15 +20,13 @@ function shallowReadonly(obj) {
   return createReactive(obj, true, true)
 }
 
-// 增加第三个参数 isReadonly，代表是否只读，默认为 false，即非只读
 function createReactive(obj, isShallow = false, isReadonly = false) {
   return new Proxy(obj, {
-    // 拦截读取操作
     get(target, key, receiver) {
+      console.log('get: ', key)
       if (key === 'raw') {
         return target
       }
-      // 非只读的时候才需要建立响应联系
       if (!isReadonly) {
         track(target, key)
       }
@@ -41,15 +38,13 @@ function createReactive(obj, isShallow = false, isReadonly = false) {
       }
 
       if (typeof res === 'object' && res !== null) {
-        // 如果数据为只读，则调用 readonly 对值进行包装
         return isReadonly ? readonly(res) : reactive(res)
       }
 
       return res
     },
-    // 拦截设置操作
     set(target, key, newVal, receiver) {
-      // 如果是只读的，则打印警告信息并返回
+      console.log('set: ', key )
       if (isReadonly) {
         console.warn(`属性 ${key} 是只读的`)
         return true
@@ -58,7 +53,6 @@ function createReactive(obj, isShallow = false, isReadonly = false) {
       const type = Object.prototype.hasOwnProperty.call(target, key) ? 'SET' : 'ADD'
       const res = Reflect.set(target, key, newVal, receiver)
 
-      // target === receiver.raw 说明 receiver 就是 target 的代理对象
       if (target === receiver.raw) {
         if (oldVal !== newVal && (oldVal === oldVal || newVal === newVal)) {
           trigger(target, key, type)
@@ -72,12 +66,11 @@ function createReactive(obj, isShallow = false, isReadonly = false) {
       return Reflect.has(target, key)
     },
     ownKeys(target) {
-      // 将副作用函数与 ITERATE_KEY 关联
+      console.log('ownkeys: ')
       track(target, ITERATE_KEY)
       return Reflect.ownKeys(target)
     },
     deleteProperty(target, key) {
-      // 如果是只读的，则打印警告信息并返回
       if (isReadonly) {
         console.warn(`属性 ${key} 是只读的`)
         return true
@@ -120,7 +113,6 @@ function trigger(target, key, type) {
     }
   })
 
-  // 当操作类型为 ADD 或 DELETE 时，需要触发与 ITERATE_KEY 相关联的副作用函数重新执行
   if (type === 'ADD' || type === 'DELETE') {
     const iterateEffects = depsMap.get(ITERATE_KEY)
     iterateEffects && iterateEffects.forEach(effectFn => {
@@ -175,10 +167,10 @@ function cleanup(effectFn) {
 
 // =========================
 
-const obj = readonly({ foo: { bar: 1 } })
+const arr = reactive(['foo'])
+effect(() => console.log(arr[0]))
 setTimeout(() => {
-  obj.foo.bar = 2
-  console.log(obj.foo.bar)
+  arr[0] = 'bar' // 能够触发响应
 }, 1000)
 
 </script>
@@ -186,4 +178,10 @@ setTimeout(() => {
 <!--
 <script>
 // 代理数组
+const arr = reactive(['foo'])
+effect(() => console.log(arr.length))
+setTimeout(() => {
+  // 设置索引 1 的值，会导致数组的长度变为 2
+  arr[1] = 'bar'
+}, 1000)
 </script>

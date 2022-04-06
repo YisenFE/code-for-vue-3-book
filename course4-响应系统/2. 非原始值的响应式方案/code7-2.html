@@ -1,0 +1,39 @@
+<body></body>
+<!-- P134 - P135 -->
+<script>
+// 代理 Set 和 Map
+/**
+  24.2.3.9 get Set.prototype.size
+      Set.prototype.size is an accessor property whose set accessor function is undefined.
+    Its get accessor function performs the following steps.
+      1. Let S be the this value.
+      2. Perform ? RequireInternalSlot(S, [[SetData]]).
+      3. Let entries be the List that is S.[[SetData]].
+      4. Let count be 0.
+      5. For each element e of entries, do
+        a. If e is not empty, set count the count + 1.
+      6. Return F(count).
+ */
+
+const s = new Set([1, 2, 3])
+const p = new Proxy(s, {
+  get(target, key, receiver) {
+    if (key === 'size') {
+      // 如果读取的是 size 属性
+      // 通过指定第三个参数 receiver 为原始对象 target 从而修复问题
+      return Reflect.get(target, key, target)
+    }
+    // 读取其他属性的默认行为
+    return Reflect.get(target, key, receiver)
+  }
+})
+console.log(p.size) // 3
+</script>
+
+<!--
+<script>
+// 代理 Set 和 Map
+// 调用 delete 方法删除值为 1 的元素
+// 会得到错误 TypeError: Method Set.prototype.delete called on incompatible receiver #<Set>
+p.delete(1)
+</script>

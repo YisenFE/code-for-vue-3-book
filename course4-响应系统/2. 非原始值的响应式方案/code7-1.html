@@ -1,0 +1,14 @@
+<body></body>
+<!-- P132 - P134 -->
+<script>
+// 代理 Set 和 Map
+
+const s = new Set([1, 2, 3])
+const p = new Proxy(s, {})
+console.log(p.size) // 报错 TypeError: Method get Set.prototype.size called on incompatible receiver #<Set>
+</script>
+
+<!--
+<script>
+// 代理 Set 和 Map
+</script>
